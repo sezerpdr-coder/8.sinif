@@ -62,6 +62,8 @@ th { background: #f8f9fa; color: #2c3e50; font-weight: bold; }
 .filter-section { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #eee; }
 .ranking-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 15px; }
 .ranking-filters select { margin-bottom: 0; }
+.individual-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+.individual-filters select { margin-bottom: 0; }
 .view-section { display: none; }
 .view-section.active { display: block; }
 .loading-overlay { display: none; text-align: center; padding: 20px; font-weight: bold; color: #2980b9; }
@@ -78,7 +80,7 @@ footer { text-align: center; padding: 25px 10px; margin-top: 25px; font-size: 12
     .main-tabs { flex-direction: column; align-items: stretch; gap: 8px; }
     .main-tabs button { min-width: 100%; padding: 11px 15px; }
     .branch-tabs { grid-template-columns: repeat(2, 1fr); }
-    .ranking-filters { grid-template-columns: 1fr; gap: 8px; }
+    .ranking-filters, .individual-filters { grid-template-columns: 1fr; gap: 8px; }
     .stats-container { gap: 8px; }
     .stat-card { padding: 11px 8px; min-width: 78px; }
     .stat-card h4 { font-size: 11px; }
@@ -107,8 +109,16 @@ footer { text-align: center; padding: 25px 10px; margin-top: 25px; font-size: 12
 
     <div id="analizView" class="view-section active">
         <div class="filter-section">
-            <label for="studentFilter"><strong>🔍 Öğrenci Seçin:</strong></label>
-            <select id="studentFilter" onchange="analizGuncelle()"></select>
+            <div class="individual-filters">
+                <div>
+                    <label for="individualClassFilter"><strong>🏫 Sınıf Seçin:</strong></label>
+                    <select id="individualClassFilter" aria-label="Bireysel analiz için sınıf seçin" onchange="bireyselSinifGuncelle()"></select>
+                </div>
+                <div>
+                    <label for="studentFilter"><strong>🔍 Öğrenci Seçin:</strong></label>
+                    <select id="studentFilter" onchange="analizGuncelle()"></select>
+                </div>
+            </div>
         </div>
         <div class="branch-tabs" id="branchTabs">
             <button class="active" type="button" onclick="setBranch('total', this)">Toplam Net</button>
@@ -331,14 +341,62 @@ function addOption(select, text, value, bold = false) {
     select.appendChild(opt);
 }
 
-function dropdownlariGuncelle() {
+function updateIndividualStudentOptions() {
+    const classSelect = document.getElementById('individualClassFilter');
     const studentSelect = document.getElementById('studentFilter');
     const previousStudent = studentSelect.value;
+    const selectedClass = classSelect.value;
+
     studentSelect.innerHTML = '';
     addOption(studentSelect, '-- Öğrenci Seçin --', '');
-    [...new Set(dataStore.map(d => d.name))].sort((a, b) => a.localeCompare(b, 'tr'))
-        .forEach(name => addOption(studentSelect, name, name));
-    if (dataStore.some(d => d.name === previousStudent)) studentSelect.value = previousStudent;
+
+    const availableRecords = !selectedClass
+        ? []
+        : selectedClass === ALL_CLASSES
+            ? dataStore
+            : dataStore.filter(d => d.className === selectedClass);
+
+    // Aynı isimli öğrencileri sınıf bilgisiyle ayrı kayıtlar olarak tut.
+    const uniqueStudents = new Map();
+    availableRecords.forEach(d => {
+        const key = JSON.stringify([d.name, d.className]);
+        if (!uniqueStudents.has(key)) uniqueStudents.set(key, { name: d.name, className: d.className });
+    });
+
+    const students = [...uniqueStudents.values()];
+    const nameCounts = new Map();
+    students.forEach(student => nameCounts.set(student.name, (nameCounts.get(student.name) || 0) + 1));
+    students.sort((a, b) => a.name.localeCompare(b.name, 'tr') || a.className.localeCompare(b.className, 'tr'));
+
+    students.forEach(student => {
+        const label = nameCounts.get(student.name) > 1
+            ? `${student.name} (${student.className})`
+            : student.name;
+        addOption(studentSelect, label, JSON.stringify([student.name, student.className]));
+    });
+
+    if ([...studentSelect.options].some(option => option.value === previousStudent)) {
+        studentSelect.value = previousStudent;
+    }
+}
+
+function bireyselSinifGuncelle() {
+    updateIndividualStudentOptions();
+    analizGuncelle();
+}
+
+function dropdownlariGuncelle() {
+    const individualClassSelect = document.getElementById('individualClassFilter');
+    const previousIndividualClass = individualClassSelect.value;
+    individualClassSelect.innerHTML = '';
+    addOption(individualClassSelect, '-- Sınıf Seçin --', '');
+    addOption(individualClassSelect, 'Tüm Sınıflar', ALL_CLASSES, true);
+    [...new Set(dataStore.map(d => d.className))].sort((a, b) => a.localeCompare(b, 'tr'))
+        .forEach(className => addOption(individualClassSelect, className, className));
+    const availableIndividualClasses = [...individualClassSelect.options].map(option => option.value);
+    individualClassSelect.value = availableIndividualClasses.includes(previousIndividualClass) && previousIndividualClass !== ''
+        ? previousIndividualClass : ALL_CLASSES;
+    updateIndividualStudentOptions();
 
     const examSelect = document.getElementById('examFilter');
     const previousExam = examSelect.value;
@@ -447,13 +505,27 @@ function getArrow(current, previous) {
 
 function analizGuncelle() {
     const student = document.getElementById('studentFilter').value;
-    const filtered = dataStore.filter(d => d.name === student);
+    let studentIdentity = null;
+    if (student) {
+        try { studentIdentity = JSON.parse(student); } catch (e) { studentIdentity = null; }
+    }
+    const filtered = studentIdentity && Array.isArray(studentIdentity)
+        ? dataStore.filter(d => d.name === studentIdentity[0] && d.className === studentIdentity[1])
+        : [];
     const tbody = document.querySelector('#resTable tbody');
     const stats = document.getElementById('statsContainer');
     if (!student) {
-        tbody.innerHTML = '<tr><td colspan="9">Lütfen bir öğrenci seçin.</td></tr>';
+        const selectedClass = document.getElementById('individualClassFilter').value;
+        const message = selectedClass ? 'Lütfen bir öğrenci seçin.' : 'Lütfen önce bir sınıf seçin.';
+        tbody.innerHTML = `<tr><td colspan="9">${message}</td></tr>`;
         stats.innerHTML = '';
         drawEmptyChart('');
+        return;
+    }
+    if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="9">Seçilen sınıf ve öğrenci için kayıt bulunamadı.</td></tr>';
+        stats.innerHTML = '';
+        drawEmptyChart('Kayıt bulunamadı');
         return;
     }
 
