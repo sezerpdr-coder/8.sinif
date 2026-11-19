@@ -8,7 +8,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>8. SINIF</title>
+<title>7. SINIF</title>
 <style>
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -64,6 +64,11 @@ th { background: #f8f9fa; color: #2c3e50; font-weight: bold; }
 .ranking-filters select { margin-bottom: 0; }
 .individual-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
 .individual-filters select { margin-bottom: 0; }
+.class-analysis-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+.class-analysis-filters select { margin-bottom: 0; }
+.analysis-subtitle { margin: 22px 0 8px; color: #34495e; font-size: 16px; }
+#classTrendChart { width: 100%; height: 100%; display: block; overflow: visible; }
+.class-analysis-note { color: #7f8c8d; font-size: 12px; margin: 8px 0 0; }
 .view-section { display: none; }
 .view-section.active { display: block; }
 .loading-overlay { display: none; text-align: center; padding: 20px; font-weight: bold; color: #2980b9; }
@@ -80,7 +85,7 @@ footer { text-align: center; padding: 25px 10px; margin-top: 25px; font-size: 12
     .main-tabs { flex-direction: column; align-items: stretch; gap: 8px; }
     .main-tabs button { min-width: 100%; padding: 11px 15px; }
     .branch-tabs { grid-template-columns: repeat(2, 1fr); }
-    .ranking-filters, .individual-filters { grid-template-columns: 1fr; gap: 8px; }
+    .ranking-filters, .individual-filters, .class-analysis-filters { grid-template-columns: 1fr; gap: 8px; }
     .stats-container { gap: 8px; }
     .stat-card { padding: 11px 8px; min-width: 78px; }
     .stat-card h4 { font-size: 11px; }
@@ -93,7 +98,6 @@ footer { text-align: center; padding: 25px 10px; margin-top: 25px; font-size: 12
 <body>
 <header>
     <div class="header-controls">
-
     </div>
     <h1>DENEME SINAVI ANALİZLERİ</h1>
     <h2>8. SINIFLAR</h2>
@@ -102,6 +106,7 @@ footer { text-align: center; padding: 25px 10px; margin-top: 25px; font-size: 12
 <div class="main-content">
     <div class="main-tabs">
         <button class="active" id="tabAnalizBtn" type="button" onclick="switchMainTab('analiz')">📈 Bireysel Analiz</button>
+        <button id="tabSinifBtn" type="button" onclick="switchMainTab('sinif')">🏫 Sınıf Analizi</button>
         <button id="tabSiralamaBtn" type="button" onclick="switchMainTab('siralama')">🏆 Genel Sıralama</button>
     </div>
     <div id="loadingMsg" class="loading-overlay">⏳ Veriler yükleniyor, lütfen bekleyin...</div>
@@ -172,6 +177,48 @@ footer { text-align: center; padding: 25px 10px; margin-top: 25px; font-size: 12
                 <thead><tr>
                     <th>Sıra</th><th>Öğrenci Adı Soyadı</th><th>Sınıf</th><th>TÜR</th><th>SOS/İNK</th><th>DİN</th>
                     <th>İNG</th><th>MAT</th><th>FEN</th><th>TOPLAM NET</th><th>LGS PUANI</th>
+                </tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="sinifAnalizView" class="view-section">
+        <div class="filter-section">
+            <div class="class-analysis-filters">
+                <div>
+                    <label for="classAnalysisFilter"><strong>🏫 Sınıf Seçin:</strong></label>
+                    <select id="classAnalysisFilter" aria-label="Sınıf analizi için sınıf seçin" onchange="sinifAnaliziGuncelle()"></select>
+                </div>
+                <div>
+                    <label for="classMetricFilter"><strong>📊 Gelişim Grafiği:</strong></label>
+                    <select id="classMetricFilter" aria-label="Sınıf gelişim grafiği ölçütü" onchange="sinifAnaliziGuncelle()">
+                        <option value="total">Genel Net Ortalaması</option>
+                        <option value="lgs">LGS Puan Ortalaması</option>
+                        <option value="tur">Türkçe Ortalaması</option>
+                        <option value="ink">Sosyal/İnkılap Ortalaması</option>
+                        <option value="din">Din Kültürü Ortalaması</option>
+                        <option value="ing">İngilizce Ortalaması</option>
+                        <option value="mat">Matematik Ortalaması</option>
+                        <option value="fen">Fen Bilimleri Ortalaması</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <h3 class="analysis-subtitle">Sınavlara Göre Ortalama Değişimi</h3>
+        <div class="chart-box">
+            <svg id="classTrendChart" viewBox="0 0 1000 400" preserveAspectRatio="none" role="img" aria-label="Sınıf ortalamalarının sınavlara göre değişim grafiği"></svg>
+        </div>
+        <div class="chart-legend" id="classTrendLegend"></div>
+        <p class="class-analysis-note">Bir sınıf seçildiğinde kesikli çizgi, aynı sınavdaki okul ortalamasını gösterir. Tüm Sınıflar seçildiğinde yalnızca genel ortalama görüntülenir.</p>
+
+        <h3 class="analysis-subtitle">Sınav Bazlı Sınıf Ortalamaları</h3>
+        <div class="table-container">
+            <table id="classTrendTable">
+                <thead><tr>
+                    <th>Sınav</th><th>Katılan Öğrenci</th><th>TÜR Ort.</th><th>SOS/İNK Ort.</th><th>DİN Ort.</th>
+                    <th>İNG Ort.</th><th>MAT Ort.</th><th>FEN Ort.</th><th>GENEL NET Ort.</th><th>LGS PUAN Ort.</th>
                 </tr></thead>
                 <tbody></tbody>
             </table>
@@ -315,17 +362,21 @@ async function verileriGetir() {
         dropdownlariGuncelle();
         analizGuncelle();
         siralamaGuncelle();
+        sinifAnaliziGuncelle();
     } catch (e) {
         console.error(e);
         dataStore = [];
         document.getElementById('studentFilter').innerHTML = '<option value="">-- Veri alınamadı --</option>';
         document.getElementById('examFilter').innerHTML = '<option value="">-- Veri alınamadı --</option>';
         document.getElementById('classFilter').innerHTML = '<option value="">-- Veri alınamadı --</option>';
+        document.getElementById('classAnalysisFilter').innerHTML = '<option value="">-- Veri alınamadı --</option>';
         document.querySelector('#resTable tbody').innerHTML = '<tr><td colspan="9">Veriler yüklenemedi.</td></tr>';
         document.querySelector('#rankTable tbody').innerHTML = '<tr><td colspan="11">Veriler yüklenemedi.</td></tr>';
+        document.querySelector('#classTrendTable tbody').innerHTML = '<tr><td colspan="10">Veriler yüklenemedi.</td></tr>';
         document.getElementById('statsContainer').innerHTML = '';
         document.getElementById('examAveragesContainer').style.display = 'none';
         drawEmptyChart('Veri yüklenemedi');
+        drawEmptySvg('classTrendChart', 'Veri yüklenemedi');
         showError('Veri yüklenemedi: ' + e.message);
     } finally {
         loading.style.display = 'none';
@@ -396,6 +447,17 @@ function dropdownlariGuncelle() {
     individualClassSelect.value = availableIndividualClasses.includes(previousIndividualClass) && previousIndividualClass !== ''
         ? previousIndividualClass : ALL_CLASSES;
     updateIndividualStudentOptions();
+
+    const classAnalysisSelect = document.getElementById('classAnalysisFilter');
+    const previousAnalysisClass = classAnalysisSelect.value;
+    classAnalysisSelect.innerHTML = '';
+    addOption(classAnalysisSelect, '-- Sınıf Seçin --', '');
+    addOption(classAnalysisSelect, 'Tüm Sınıflar', ALL_CLASSES, true);
+    [...new Set(dataStore.map(d => d.className))].sort((a, b) => a.localeCompare(b, 'tr'))
+        .forEach(className => addOption(classAnalysisSelect, className, className));
+    const analysisClasses = [...classAnalysisSelect.options].map(o => o.value);
+    classAnalysisSelect.value = analysisClasses.includes(previousAnalysisClass) && previousAnalysisClass !== ''
+        ? previousAnalysisClass : ALL_CLASSES;
 
     const examSelect = document.getElementById('examFilter');
     const previousExam = examSelect.value;
@@ -495,6 +557,159 @@ function siralamaGuncelle() {
         </tr>`).join('');
 }
 
+const CLASS_METRICS = [
+    { key: 'tur', label: 'Türkçe', color: '#3498db' },
+    { key: 'ink', label: 'Sosyal/İnkılap', color: '#16a085' },
+    { key: 'din', label: 'Din', color: '#9b59b6' },
+    { key: 'ing', label: 'İngilizce', color: '#f39c12' },
+    { key: 'mat', label: 'Matematik', color: '#e74c3c' },
+    { key: 'fen', label: 'Fen', color: '#2ecc71' }
+];
+
+function ortalama(records, key) {
+    if (!records.length) return 0;
+    return records.reduce((sum, record) => sum + Number(record[key] || 0), 0) / records.length;
+}
+
+function sinifAnaliziGuncelle() {
+    const classSelect = document.getElementById('classAnalysisFilter');
+    const selectedClass = classSelect.value;
+    const tbody = document.querySelector('#classTrendTable tbody');
+    const legend = document.getElementById('classTrendLegend');
+
+    if (!dataStore.length || !selectedClass) {
+        tbody.innerHTML = '<tr><td colspan="10">Lütfen bir sınıf seçin.</td></tr>';
+        drawEmptySvg('classTrendChart', selectedClass ? 'Veri bulunamadı' : 'Sınıf seçin');
+        legend.innerHTML = '';
+        return;
+    }
+
+    const selectedRecords = selectedClass === ALL_CLASSES
+        ? dataStore.slice()
+        : dataStore.filter(d => d.className === selectedClass);
+
+    if (!selectedRecords.length) {
+        tbody.innerHTML = '<tr><td colspan="10">Seçilen sınıfa ait kayıt bulunamadı.</td></tr>';
+        drawEmptySvg('classTrendChart', 'Kayıt bulunamadı');
+        legend.innerHTML = '';
+        return;
+    }
+
+    // Sınav sırası, CSV dosyasındaki ilk görünme sırasına göre korunur.
+    const examOrder = [...new Set(dataStore.map(d => d.exam))];
+    const summaries = examOrder.map(exam => {
+        const records = selectedRecords.filter(d => d.exam === exam);
+        if (!records.length) return null;
+        const summary = { exam, count: records.length };
+        ['tur', 'ink', 'din', 'ing', 'mat', 'fen', 'total', 'lgs'].forEach(key => {
+            summary[key] = ortalama(records, key);
+        });
+        const schoolRecords = dataStore.filter(d => d.exam === exam);
+        summary.school = {};
+        ['tur', 'ink', 'din', 'ing', 'mat', 'fen', 'total', 'lgs'].forEach(key => {
+            summary.school[key] = ortalama(schoolRecords, key);
+        });
+        return summary;
+    }).filter(Boolean);
+
+    if (!summaries.length) {
+        tbody.innerHTML = '<tr><td colspan="10">Seçilen sınıf için sınav ortalaması hesaplanamadı.</td></tr>';
+        drawEmptySvg('classTrendChart', 'Grafik verisi bulunamadı');
+        legend.innerHTML = '';
+        return;
+    }
+
+    const metricKey = document.getElementById('classMetricFilter').value || 'total';
+    const metricTitle = branchNames[metricKey] || 'Genel Net';
+    const classValues = summaries.map(item => item[metricKey]);
+    const schoolValues = summaries.map(item => item.school[metricKey]);
+    const showSchoolComparison = selectedClass !== ALL_CLASSES;
+
+    drawClassTrendChart(
+        summaries.map(item => item.exam),
+        classValues,
+        schoolValues,
+        metricTitle,
+        showSchoolComparison
+    );
+
+    legend.innerHTML = showSchoolComparison
+        ? '<span class="legend-item"><span class="legend-line"></span> Seçilen Sınıf</span><span class="legend-item"><span class="legend-line school"></span> Okul Ortalaması</span>'
+        : '<span class="legend-item"><span class="legend-line"></span> Tüm Sınıflar Ortalaması</span>';
+
+    tbody.innerHTML = summaries.map(item => `
+        <tr>
+            <td>${escapeHtml(item.exam)}</td>
+            <td>${item.count}</td>
+            <td>${item.tur.toFixed(2)}</td>
+            <td>${item.ink.toFixed(2)}</td>
+            <td>${item.din.toFixed(2)}</td>
+            <td>${item.ing.toFixed(2)}</td>
+            <td>${item.mat.toFixed(2)}</td>
+            <td>${item.fen.toFixed(2)}</td>
+            <td style="font-weight:bold;color:#2980b9">${item.total.toFixed(2)}</td>
+            <td style="font-weight:bold;color:#e67e22">${item.lgs.toFixed(2)}</td>
+        </tr>`).join('');
+}
+
+function drawEmptySvg(svgId, message) {
+    const svg = document.getElementById(svgId);
+    if (!svg) return;
+    svg.innerHTML = message
+        ? `<text x="500" y="205" text-anchor="middle" fill="#95a5a6" font-size="18">${escapeHtml(message)}</text>`
+        : '';
+}
+
+function drawClassTrendChart(labels, classValues, schoolValues, title, showSchoolComparison) {
+    const svg = document.getElementById('classTrendChart');
+    const W = 1000, H = 400, left = 75, right = 25, top = 40, bottom = 70;
+    const plotW = W - left - right, plotH = H - top - bottom;
+    const allValues = showSchoolComparison ? classValues.concat(schoolValues) : classValues.slice();
+    let min = Math.min(...allValues), max = Math.max(...allValues);
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+        drawEmptySvg('classTrendChart', 'Grafik verisi bulunamadı');
+        return;
+    }
+    if (min === max) { min -= 1; max += 1; }
+    const padding = (max - min) * 0.12;
+    min -= padding;
+    max += padding;
+    const x = i => labels.length === 1 ? left + plotW / 2 : left + (i / (labels.length - 1)) * plotW;
+    const y = value => top + plotH - ((value - min) / (max - min)) * plotH;
+    const toPoints = values => values.map((value, i) => `${x(i).toFixed(1)},${y(value).toFixed(1)}`).join(' ');
+    let drawing = '';
+
+    for (let i = 0; i <= 5; i++) {
+        const value = min + (max - min) * (i / 5);
+        const yy = y(value);
+        drawing += `<line x1="${left}" y1="${yy}" x2="${W - right}" y2="${yy}" stroke="#e9ecef" stroke-width="1"/>`;
+        drawing += `<text x="${left - 10}" y="${yy + 4}" text-anchor="end" fill="#6c757d" font-size="12">${value.toFixed(1)}</text>`;
+    }
+
+    drawing += `<text x="${W / 2}" y="21" text-anchor="middle" fill="#2c3e50" font-size="16" font-weight="bold">${escapeHtml(title)} — sınavlara göre değişim</text>`;
+    labels.forEach((label, i) => {
+        const xx = x(i);
+        drawing += `<text x="${xx}" y="${H - 22}" text-anchor="middle" fill="#6c757d" font-size="11" transform="rotate(-20 ${xx} ${H - 22})">${escapeHtml(label)}</text>`;
+    });
+
+    if (showSchoolComparison && labels.length > 1) {
+        drawing += `<polyline points="${toPoints(schoolValues)}" fill="none" stroke="#e67e22" stroke-width="3" stroke-dasharray="7 6" stroke-linecap="round" stroke-linejoin="round"/>`;
+    }
+    if (labels.length > 1) {
+        drawing += `<polyline points="${toPoints(classValues)}" fill="none" stroke="#3498db" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`;
+    }
+    classValues.forEach((value, i) => {
+        drawing += `<circle cx="${x(i)}" cy="${y(value)}" r="5" fill="#fff" stroke="#3498db" stroke-width="3"/>`;
+    });
+    if (showSchoolComparison) {
+        schoolValues.forEach((value, i) => {
+            drawing += `<circle cx="${x(i)}" cy="${y(value)}" r="3.5" fill="#e67e22"/>`;
+        });
+    }
+    svg.innerHTML = drawing;
+}
+
+
 function getArrow(current, previous) {
     if (previous === null) return '';
     if (current > previous) return ' <span style="color:#27ae60;font-weight:bold">↑</span>';
@@ -559,8 +774,7 @@ function analizGuncelle() {
 }
 
 function drawEmptyChart(message) {
-    const svg = document.getElementById('devChart');
-    svg.innerHTML = message ? `<text x="500" y="205" text-anchor="middle" fill="#95a5a6" font-size="18">${escapeHtml(message)}</text>` : '';
+    drawEmptySvg('devChart', message);
 }
 
 function drawChart(labels, student, school, title) {
@@ -599,13 +813,18 @@ function drawChart(labels, student, school, title) {
 function switchMainTab(tab) {
     document.querySelectorAll('.view-section').forEach(section => section.classList.remove('active'));
     document.querySelectorAll('.main-tabs button').forEach(button => button.classList.remove('active'));
+
     if (tab === 'analiz') {
         document.getElementById('analizView').classList.add('active');
         document.getElementById('tabAnalizBtn').classList.add('active');
-    } else {
+    } else if (tab === 'siralama') {
         document.getElementById('siralamaView').classList.add('active');
         document.getElementById('tabSiralamaBtn').classList.add('active');
         siralamaGuncelle();
+    } else {
+        document.getElementById('sinifAnalizView').classList.add('active');
+        document.getElementById('tabSinifBtn').classList.add('active');
+        sinifAnaliziGuncelle();
     }
 }
 
